@@ -1,36 +1,50 @@
-#include <stdio.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <assert.h>
+#include <cmath>
+#include "vertices.hpp"
 
-static int surface[6][3][3];
-enum COLOR {GREEN, BLUE, WHITE, YELLOW, ORANGE, RED,
+enum SURFACE_INDEX {GREEN, BLUE, WHITE, YELLOW, ORANGE, RED,
             GREEN_T, BLUE_T, WHITE_T, YELLOW_T, ORANGE_T, RED_T};
+
+enum CETER_INDEX {GREEN_CENTER = 4, BLUE_CENTER = 22,
+                  WHITE_CENTER = 10, YELLOW_CENTER = 16,
+                  ORANGE_CENTER = 12, RED_CENTER = 14};
+
+int center_index[6] = {GREEN_CENTER, BLUE_CENTER,
+                       WHITE_CENTER, YELLOW_CENTER,
+                       ORANGE_CENTER, RED_CENTER};
+
+float surface_normal[6][3] = {
+    {0, 0, -1}, //green
+    {0, 0, 1},  //blue
+    {0, -1, 0}, //white
+    {0, 1, 0},  //yellow
+    {-1, 0, 0}, //orange
+    {1, 0, 0},  //red
+};
+
+bool at_same_position(float p1[], float p2[]) {
+    for (int i = 0; i < 3; ++i) if (abs(p1[i] - p2[i]) >= 0.0001) return false;
+    return true;
+}
 
 class magic_cube
 {
-private:
-    static void cw(int color);
 public:
     int right;  //to x direction
     int up;     //to y direction
     int front;  //to z direction
-    COLOR oppo[6];
-    void (*rotate[12])(void);
-
-    void set_direction(int r, int u, int f);
+    SURFACE_INDEX oppo[6];
+    float cubes[27][6][6][5];
 
     magic_cube();
-    static void yellow();
-    static void white_t();
-    static void red();
-    static void orange_t();
-    static void blue();
-    static void green_t();
 
-    static void yellow_t();
-    static void white();
-    static void red_t();
-    static void orange();
-    static void blue_t();
-    static void green();
+    void set_direction(int r, int u, int f);
+    bool is_at_same_surface(int cube_index, int center_index, int color_index);
+    void rotate_cubes(int cube_index[], int num, float axis[], float degree);
+    void rotate_surface(int surface_index);
 
     void U();
     void Dt();
@@ -48,10 +62,6 @@ public:
 };
 
 magic_cube::magic_cube() {
-    for (int i = 0; i < 6; ++i)
-        for (int j = 0; j < 3; ++j)
-            for (int k = 0; k < 3; ++k)
-                surface[i][j][k] = i;
     oppo[WHITE] = YELLOW;
     oppo[YELLOW] = WHITE;
     oppo[ORANGE] = RED;
@@ -63,69 +73,25 @@ magic_cube::magic_cube() {
     up = YELLOW;
     front = BLUE;
 
-    rotate[YELLOW] = this->yellow;
-    rotate[WHITE] = this->white;
-    rotate[RED] = this->red;
-    rotate[ORANGE] = this->orange;
-    rotate[BLUE] = this->blue;
-    rotate[GREEN] = this->green;
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            for (int k = 0; k < 3; ++k) {
+                memcpy(cubes[k*9+j*3+i], vertices, sizeof(vertices));
+                for (int p = 0; p < 6; ++p) {
+                    for (int q = 0; q < 6; ++q) {
+                        cubes[k*9+j*3+i][p][q][0] += i;
+                        cubes[k*9+j*3+i][p][q][1] += j;
+                        cubes[k*9+j*3+i][p][q][2] += k;
 
-    rotate[YELLOW_T] = this->yellow_t;
-    rotate[WHITE_T] = this->white_t;
-    rotate[RED_T] = this->red_t;
-    rotate[ORANGE_T] = this->orange_t;
-    rotate[BLUE_T] = this->blue_t;
-    rotate[GREEN_T] = this->green_t;
+                        cubes[k*9+j*3+i][p][q][0] -= 1.5;
+                        cubes[k*9+j*3+i][p][q][1] -= 1.5;
+                        cubes[k*9+j*3+i][p][q][2] -= 1.5;
+                    }
+                }
+            }
+        }
+    }
 }
-
-void magic_cube::U() {
-    rotate[up]();
-}
-
-void magic_cube::D() {
-    rotate[oppo[up]]();
-}
-
-void magic_cube::R() {
-    rotate[right]();
-}
-
-void magic_cube::L() {
-    rotate[oppo[right]]();
-}
-
-void magic_cube::F() {
-    rotate[front]();
-}
-
-void magic_cube::B() {
-    rotate[oppo[front]]();
-}
-
-void magic_cube::Ut() {
-    rotate[up + 6]();
-}
-
-void magic_cube::Dt() {
-    rotate[oppo[up] + 6]();
-}
-
-void magic_cube::Rt() {
-    rotate[right + 6]();
-}
-
-void magic_cube::Lt() {
-    rotate[oppo[right] + 6]();
-}
-
-void magic_cube::Ft() {
-    rotate[front + 6]();
-}
-
-void magic_cube::Bt() {
-    rotate[oppo[front] + 6]();
-}
-
 
 void magic_cube::set_direction(int right_color, int up_color, int front_color) {
     right = right_color;
@@ -133,120 +99,99 @@ void magic_cube::set_direction(int right_color, int up_color, int front_color) {
     front = front_color;
 }
 
-void magic_cube::cw(int color) {
-    int temp;
-
-    temp = surface[color][0][1];
-    surface[color][0][1] = surface[color][1][0];
-    surface[color][1][0] = surface[color][2][1];
-    surface[color][2][1] = surface[color][1][2];
-    surface[color][1][2] = temp;
-
-    temp = surface[color][0][0];
-    surface[color][0][0] = surface[color][2][0];
-    surface[color][2][0] = surface[color][2][2];
-    surface[color][2][2] = surface[color][0][2];
-    surface[color][0][2] = temp;
+bool magic_cube::is_at_same_surface(int cube_index, int center_index, int color_index) {
+    for (int i = 0; i < 6; ++i) {
+        for (int j = 0; j < 6; ++j) {
+            for (int k = 0; k < 4; ++k) {
+                if (at_same_position(cubes[cube_index][i][j], cubes[center_index][color_index][k])) {
+                    return true;
+                }
+            }
+        }
+    } 
+    return false;
 }
 
-void magic_cube::yellow() {
-    cw(YELLOW);
+//旋转角度是逆时针，取负变为顺时针
+void magic_cube::rotate_cubes(int cube_index[], int num, float axis[], float degree) {
+    glm::mat4 model(1.0f);
+    model = glm::rotate(model, glm::radians(degree), glm::vec3(axis[0], axis[1], axis[2]));
 
-    int temp[3];
-    for (int i = 0; i < 3; ++i) {
-        temp[i] = surface[RED][i][2];
-        surface[RED][i][2] = surface[GREEN][0][2 - i];
-        surface[GREEN][0][2 - i] = surface[ORANGE][2 - i][2];
-        surface[ORANGE][2 - i][2] = surface[BLUE][0][i];
-        surface[BLUE][0][i] = temp[i];
+    for (int i = 0; i < 9; ++i) {
+        for (int j = 0; j < 6; ++j) {
+            for (int k = 0; k < 6; ++k) {
+                glm::vec4 point(cubes[cube_index[i]][j][k][0],
+                                cubes[cube_index[i]][j][k][1],
+                                cubes[cube_index[i]][j][k][2], 1.0f);
+                point = model * point;
+                for (int m = 0; m < 3; ++m) cubes[cube_index[i]][j][k][m] = point[m];
+            }
+        }
     }
 }
 
-void magic_cube::white_t() {
-    cw(WHITE);
+void magic_cube::rotate_surface(int surface_index) {
+    int surface_cube[9];
+    int count = 0;
+    bool checked;
 
-    int temp[3];
-    for (int i = 0; i < 3; ++i) {
-        temp[i] = surface[RED][i][0];
-        surface[RED][i][0] = surface[GREEN][2][2 - i];
-        surface[GREEN][2][2 - i] = surface[ORANGE][2 - i][0];
-        surface[ORANGE][2 - i][0] = surface[BLUE][2][i];
-        surface[BLUE][2][i] = temp[i];
+    for (int i = 0; i < 9; ++i) surface_cube[i] = -1;
+
+    for (int i = 0; i < 27; ++i) {
+        if (is_at_same_surface(i, center_index[surface_index], surface_index)) {
+            surface_cube[count++] = i;
+        }
     }
+    //旋转面必有9个块
+    assert(count == 9);
+
+    rotate_cubes(surface_cube, count, surface_normal[surface_index], -90.0f);
 }
 
-void magic_cube::red() {
-    cw(RED);
-
-    int temp[3];
-    for (int i = 0; i < 3; ++i) {
-        temp[i] = surface[BLUE][i][2];
-        surface[BLUE][i][2] = surface[WHITE][2 - i][2];
-        surface[WHITE][2 - i][2] = surface[GREEN][2 - i][2];
-        surface[GREEN][2 - i][2] = surface[YELLOW][i][2];
-        surface[YELLOW][i][2] = temp[i];
-    }
+void magic_cube::U() {
+    rotate_surface(up);
 }
 
-void magic_cube::orange_t() {
-    cw(ORANGE);
-
-    int temp[3];
-    for (int i = 0; i < 3; ++i) {
-        temp[i] = surface[BLUE][i][0];
-        surface[BLUE][i][0] = surface[WHITE][2 - i][0];
-        surface[WHITE][2 - i][0] = surface[GREEN][2 - i][0];
-        surface[GREEN][2 - i][0] = surface[YELLOW][i][0];
-        surface[YELLOW][i][0] = temp[i];
-    }
+void magic_cube::D() {
+    rotate_surface(oppo[up]);
 }
 
-void magic_cube::blue() {
-    cw(BLUE);
-
-    int temp[3];
-    for (int i = 0; i < 3; ++i) {
-        temp[i] = surface[YELLOW][2][i];
-        surface[YELLOW][2][i] = surface[ORANGE][0][i];
-        surface[ORANGE][0][i] = surface[WHITE][2][2 - i];
-        surface[WHITE][2][2 - i] = surface[RED][0][2 - i];
-        surface[RED][0][2 - i] = temp[i];
-    }
+void magic_cube::R() {
+    rotate_surface(right);
 }
 
-void magic_cube::green_t() {
-    cw(GREEN);
-
-    int temp[3];
-    for (int i = 0; i < 3; ++i) {
-        temp[i] = surface[YELLOW][0][i];
-        surface[YELLOW][0][i] = surface[ORANGE][2][i];
-        surface[ORANGE][2][i] = surface[WHITE][0][2 - i];
-        surface[WHITE][0][2 - i] = surface[RED][2][2 - i];
-        surface[RED][2][2 - i] = temp[i];
-    }
+void magic_cube::L() {
+    rotate_surface(oppo[right]);
 }
 
-void magic_cube::yellow_t() {
-    for (int i = 0; i < 3; ++i) yellow();
+void magic_cube::F() {
+    rotate_surface(front);
 }
 
-void magic_cube::red_t() {
-    for (int i = 0; i < 3; ++i) red();
+void magic_cube::B() {
+    rotate_surface(oppo[front]);
 }
 
-void magic_cube::blue_t() {
-    for (int i = 0; i < 3; ++i) blue();
+void magic_cube::Ut() {
+    for (int i = 0; i < 3; ++i) U();
 }
 
-void magic_cube::white() {
-    for (int i = 0; i < 3; ++i) white_t();
+void magic_cube::Dt() {
+    for (int i = 0; i < 3; ++i) D();
 }
 
-void magic_cube::orange() {
-    for (int i = 0; i < 3; ++i) orange_t();
+void magic_cube::Rt() {
+    for (int i = 0; i < 3; ++i) R();
 }
 
-void magic_cube::green() {
-    for (int i = 0; i < 3; ++i) green_t();
+void magic_cube::Lt() {
+    for (int i = 0; i < 3; ++i) L();
+}
+
+void magic_cube::Ft() {
+    for (int i = 0; i < 3; ++i) F();
+}
+
+void magic_cube::Bt() {
+    for (int i = 0; i < 3; ++i) B();
 }

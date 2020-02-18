@@ -8,15 +8,12 @@
 
 #include "stb_image.hpp"
 #include "shader_s.hpp"
-#include "vertices.hpp"
 #include "magic_cube.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void processInput(GLFWwindow *window);
-void show_hints();
 
 void set_magic_cube_direction(float normal[][4]);
 
@@ -36,6 +33,14 @@ float pitch = 0.0f;
 float yaw = 0.0f;
 bool firstMouse = true;
 
+char colors[6][16] = {
+    "green.png", "blue.png", "white.png", "yellow.png", "orange.png", "red.png"
+};
+
+char texName[6][16] = {
+    "texture0", "texture1", "texture2", "texture3", "texture4", "texture5"
+};
+
 magic_cube Cube;
 
 int main(void) {
@@ -50,7 +55,7 @@ int main(void) {
 #endif
 
     //glfw window creation
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "magic_cube_0.9", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "magic_cube_2.0", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -70,15 +75,15 @@ int main(void) {
     //build and compile out shader program
     Shader ourShader = Shader("shader.vs", "shader.fs");
 
-    unsigned int VAO[6], VBO[6];
-    glGenVertexArrays(6, VAO);
-    glGenBuffers(6, VBO);
+    unsigned int VAO[27], VBO[27];
+    glGenVertexArrays(27, VAO);
+    glGenBuffers(27, VBO);
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 27; i++) {
         glBindVertexArray(VAO[i]);
 
         glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[i]), vertices[i], GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Cube.cubes[i]), Cube.cubes[i], GL_STATIC_DRAW);
         //position attribute
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
@@ -120,8 +125,6 @@ int main(void) {
     }
     glEnable(GL_DEPTH_TEST);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-    show_hints();
     //render loop
     while (!glfwWindowShouldClose(window)) {
         currFrame = glfwGetTime();
@@ -132,9 +135,11 @@ int main(void) {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        for (int i = 0; i < 6; i++) {
-
+        for (int i = 0; i < 27; i++) {
             glBindVertexArray(VAO[i]);
+            //注意：在修改bufferdata前需要绑定buffer
+            glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(Cube.cubes[i]), Cube.cubes[i], GL_STATIC_DRAW);
 
             float t = glfwGetTime();
 
@@ -162,7 +167,7 @@ int main(void) {
             set_magic_cube_direction(normal);
 
             model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
-            model = glm::translate(model, glm::vec3(-1.5, -1.5, -1.5));
+            //model = glm::translate(model, glm::vec3(-1.5, -1.5, -1.5));
 
             glm::mat4 view(1.0f);
             view = glm::translate(view, glm::vec3(0.0f, 0.0f, -1.0f));
@@ -171,31 +176,30 @@ int main(void) {
             glm::mat4 projection(1.0f);
             projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH/SCR_HEIGHT, 0.1f, 100.0f);
 
-            for (int j = 0; j < 3; ++j) {
-                for (int k = 0; k < 3; ++k) {
-                    glActiveTexture(GL_TEXTURE0 + surface[i][j][k]);
-                    glBindTexture(GL_TEXTURE_2D, texture[surface[i][j][k]]);
+            for (int j = 0; j < 6; ++j) {
+                //printf("j = %d\n", j);
+                glActiveTexture(GL_TEXTURE0 + j);
+                glBindTexture(GL_TEXTURE_2D, texture[j]);
 
-                    ourShader.use();
-                    unsigned int index = glGetUniformLocation(ourShader.ID, "index");
-                    unsigned int modelLoc = glGetUniformLocation(ourShader.ID, "model");
-                    unsigned int viewLoc = glGetUniformLocation(ourShader.ID, "view");
-                    unsigned int projectionLoc = glGetUniformLocation(ourShader.ID, "projection");
-                    glUniform1i(index, surface[i][j][k]);
-                    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-                    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-                    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-                    //绘制三角形
-                    glDrawArrays(GL_TRIANGLES, (3 * j + k) * 6, 6);
-                }
+                ourShader.use();
+                unsigned int index = glGetUniformLocation(ourShader.ID, "index");
+                unsigned int modelLoc = glGetUniformLocation(ourShader.ID, "model");
+                unsigned int viewLoc = glGetUniformLocation(ourShader.ID, "view");
+                unsigned int projectionLoc = glGetUniformLocation(ourShader.ID, "projection");
+                glUniform1i(index, j);
+                glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+                glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+                glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+                //绘制三角形
+                glDrawArrays(GL_TRIANGLES, j*6, 6);
             }
         }
         //std::cout << "yaw = " << yaw << ", pitch = " << pitch << std::endl;
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    glDeleteVertexArrays(6, VAO);
-    glDeleteBuffers(6, VBO);
+    glDeleteVertexArrays(27, VAO);
+    glDeleteBuffers(27, VBO);
 
     glfwTerminate();
 
@@ -254,6 +258,7 @@ void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
         pitch = -90.0f;
     }
 }
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action != GLFW_PRESS) return;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) != GLFW_PRESS &&
@@ -307,12 +312,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
 }
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-        ;
-    }
-}
-
 void set_magic_cube_direction(float normal[][4]) {
     int right_color, up_color, front_color;
 
@@ -341,12 +340,4 @@ void set_magic_cube_direction(float normal[][4]) {
         }
     }
     Cube.set_direction(right_color, up_color, front_color);
-}
-
-void show_hints() {
-    printf("Welcome to Liu Lingfei's magic_cube game!!!\n\n");
-    printf("Esc to quit\n");
-    printf("Use mouse to 改变视角\n");
-    printf("X = (U)p, (D)own, (R)ight, (L)eft, (F)ront, (B)ack to 顺时针旋转魔方\n");
-    printf("shift+X to 逆时针旋转魔方\n");
 }
