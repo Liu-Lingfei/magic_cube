@@ -16,9 +16,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void processInput(GLFWwindow *window);
 
 void set_magic_cube_direction(float normal[][4]);
+void rotate_cube_slowly();
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 800;
+const float NINETY_DEGREES = 90.0;
 
 glm::vec3 cameraPos(0.0f, 0.0f, 1.0f);
 glm::vec3 cameraTarget(0.0f, 0.0f, 0.0f);
@@ -42,6 +44,10 @@ char texName[6][16] = {
 };
 
 magic_cube Cube;
+
+int rotation_surface = -1;
+int rotation_counter = 0;
+float rotation_speed = 1.0f;
 
 int main(void) {
     //glfw: intialize and configure
@@ -125,6 +131,7 @@ int main(void) {
     }
     glEnable(GL_DEPTH_TEST);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
     //render loop
     while (!glfwWindowShouldClose(window)) {
         currFrame = glfwGetTime();
@@ -134,6 +141,9 @@ int main(void) {
         processInput(window);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        //逐渐转动魔方的过程
+        if (rotation_surface >= 0) rotate_cube_slowly();
         
         for (int i = 0; i < 27; i++) {
             glBindVertexArray(VAO[i]);
@@ -261,54 +271,35 @@ void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action != GLFW_PRESS) return;
+    if (rotation_surface >= 0) return;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) != GLFW_PRESS &&
         glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) != GLFW_PRESS) {
-        switch (key) {
-            case GLFW_KEY_U:
-                Cube.U();
-                break;
-            case GLFW_KEY_D:
-                Cube.D();
-                break;
-            case GLFW_KEY_R:
-                Cube.R();
-                break;
-            case GLFW_KEY_L:
-                Cube.L();
-                break;
-            case GLFW_KEY_F:
-                Cube.F();
-                break;
-            case GLFW_KEY_B:
-                Cube.B();
-                break;
-            default:
-                break;
-        }
+        rotation_speed = 1.0f;
     }
     else {
-        switch (key) {
-            case GLFW_KEY_U:
-                Cube.Ut();
-                break;
-            case GLFW_KEY_D:
-                Cube.Dt();
-                break;
-            case GLFW_KEY_R:
-                Cube.Rt();
-                break;
-            case GLFW_KEY_L:
-                Cube.Lt();
-                break;
-            case GLFW_KEY_F:
-                Cube.Ft();
-                break;
-            case GLFW_KEY_B:
-                Cube.Bt();
-                break;
-            default:
-                break;
-        }
+        rotation_speed = -1.0f;
+    }
+    switch (key) {
+        case GLFW_KEY_U:
+            rotation_surface = Cube.up;
+            break;
+        case GLFW_KEY_D:
+            rotation_surface = Cube.oppo[Cube.up];
+            break;
+        case GLFW_KEY_R:
+            rotation_surface = Cube.right;
+            break;
+        case GLFW_KEY_L:
+            rotation_surface = Cube.oppo[Cube.right];
+            break;
+        case GLFW_KEY_F:
+            rotation_surface = Cube.front;
+            break;
+        case GLFW_KEY_B:
+            rotation_surface = Cube.oppo[Cube.front];
+            break;
+        default:
+            break;
     }
 }
 
@@ -340,4 +331,25 @@ void set_magic_cube_direction(float normal[][4]) {
         }
     }
     Cube.set_direction(right_color, up_color, front_color);
+}
+
+void rotate_cube_slowly() {
+    if (rotation_surface == Cube.up)
+        Cube.U(rotation_speed);
+    else if (rotation_surface == Cube.oppo[Cube.up])
+        Cube.D(rotation_speed);
+    else if (rotation_surface == Cube.right)
+        Cube.R(rotation_speed);
+    else if (rotation_surface == Cube.oppo[Cube.right])
+        Cube.L(rotation_speed);
+    else if (rotation_surface == Cube.front)
+        Cube.F(rotation_speed);
+    else if (rotation_surface == Cube.oppo[Cube.front])
+        Cube.B(rotation_speed);
+
+    rotation_counter++;
+    if (rotation_counter == NINETY_DEGREES) {
+        rotation_counter = 0;
+        rotation_surface = -1;
+    }
 }

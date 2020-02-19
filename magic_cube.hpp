@@ -44,21 +44,14 @@ public:
     void set_direction(int r, int u, int f);
     bool is_at_same_surface(int cube_index, int center_index, int color_index);
     void rotate_cubes(int cube_index[], int num, float axis[], float degree);
-    void rotate_surface(int surface_index);
+    void rotate_surface(int surface_index, float degree);
 
-    void U();
-    void Dt();
-    void R();
-    void Lt();
-    void F();
-    void Bt();
-
-    void Ut();
-    void Rt();
-    void Ft();
-    void D();
-    void L();
-    void B();
+    void U(float degree);
+    void D(float degree);
+    void R(float degree);
+    void L(float degree);
+    void F(float degree);
+    void B(float degree);
 };
 
 magic_cube::magic_cube() {
@@ -112,10 +105,10 @@ bool magic_cube::is_at_same_surface(int cube_index, int center_index, int color_
     return false;
 }
 
-//旋转角度是逆时针，取负变为顺时针
 void magic_cube::rotate_cubes(int cube_index[], int num, float axis[], float degree) {
     glm::mat4 model(1.0f);
-    model = glm::rotate(model, glm::radians(degree), glm::vec3(axis[0], axis[1], axis[2]));
+    //旋转角度是逆时针，取负变为顺时针
+    model = glm::rotate(model, glm::radians(-degree), glm::vec3(axis[0], axis[1], axis[2]));
 
     for (int i = 0; i < 9; ++i) {
         for (int j = 0; j < 6; ++j) {
@@ -130,7 +123,7 @@ void magic_cube::rotate_cubes(int cube_index[], int num, float axis[], float deg
     }
 }
 
-void magic_cube::rotate_surface(int surface_index) {
+void magic_cube::rotate_surface(int surface_index, float degree) {
     int surface_cube[9];
     int count = 0;
     bool checked;
@@ -145,53 +138,29 @@ void magic_cube::rotate_surface(int surface_index) {
     //旋转面必有9个块
     assert(count == 9);
 
-    rotate_cubes(surface_cube, count, surface_normal[surface_index], -90.0f);
+    rotate_cubes(surface_cube, count, surface_normal[surface_index], degree);
 }
 
-void magic_cube::U() {
-    rotate_surface(up);
+void magic_cube::U(float degree) {
+    rotate_surface(up, degree);
 }
 
-void magic_cube::D() {
-    rotate_surface(oppo[up]);
+void magic_cube::D(float degree) {
+    rotate_surface(oppo[up], degree);
 }
 
-void magic_cube::R() {
-    rotate_surface(right);
+void magic_cube::R(float degree) {
+    rotate_surface(right, degree);
 }
 
-void magic_cube::L() {
-    rotate_surface(oppo[right]);
+void magic_cube::L(float degree) {
+    rotate_surface(oppo[right], degree);
 }
 
-void magic_cube::F() {
-    rotate_surface(front);
+void magic_cube::F(float degree) {
+    rotate_surface(front, degree);
 }
 
-void magic_cube::B() {
-    rotate_surface(oppo[front]);
-}
-
-void magic_cube::Ut() {
-    for (int i = 0; i < 3; ++i) U();
-}
-
-void magic_cube::Dt() {
-    for (int i = 0; i < 3; ++i) D();
-}
-
-void magic_cube::Rt() {
-    for (int i = 0; i < 3; ++i) R();
-}
-
-void magic_cube::Lt() {
-    for (int i = 0; i < 3; ++i) L();
-}
-
-void magic_cube::Ft() {
-    for (int i = 0; i < 3; ++i) F();
-}
-
-void magic_cube::Bt() {
-    for (int i = 0; i < 3; ++i) B();
+void magic_cube::B(float degree) {
+    rotate_surface(oppo[front], degree);
 }
