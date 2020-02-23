@@ -1,14 +1,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <iostream>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <assert.h>
 
-#include "stb_image.hpp"
-#include "shader_s.hpp"
 #include "magic_cube.hpp"
+
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos);
@@ -37,15 +31,7 @@ float pitch = 0.0f;
 float yaw = 0.0f;
 bool firstMouse = true;
 
-char colors[6][16] = {
-    "green.png", "blue.png", "white.png", "yellow.png", "orange.png", "red.png"
-};
-
-char texName[6][16] = {
-    "texture0", "texture1", "texture2", "texture3", "texture4", "texture5"
-};
-
-magic_cube Cube;
+magic_cube *Cube;
 
 int rotation_surface = -1;
 int rotation_counter = 0;
@@ -80,140 +66,58 @@ int main(void) {
         return -1;
     }
 
-    //build and compile out shader program
-    Shader ourShader = Shader("shader.vs", "shader.fs");
-
-    unsigned int VAO[27], VBO[27];
-    glGenVertexArrays(27, VAO);
-    glGenBuffers(27, VBO);
-
-    for (int i = 0; i < 27; i++) {
-        glBindVertexArray(VAO[i]);
-
-        glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(Cube.cubes[i].v), Cube.cubes[i].v, GL_STATIC_DRAW);
-        //position attribute
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-    }
-
-    //load and create a texture
-    unsigned int texture[6];
-    glGenTextures(6, texture);
-
-    for (int i = 0; i < 6; i++) {
-        glActiveTexture(GL_TEXTURE0 + i);
-        glBindTexture(GL_TEXTURE_2D, texture[i]);
-        //set the texture wrapping parameters
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        //set texture filtering parameters
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        //load image, create texture and generate mipmaps
-        int width, height, nrChannels;
-        stbi_set_flip_vertically_on_load(true);
-        unsigned char *data = stbi_load(colors[i], &width, &height, &nrChannels, 0);
-        if (data) {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-            glGenerateMipmap(GL_TEXTURE_2D);
-        }
-        else {
-            std::cout << "Failed to load texture" << std::endl;
-        }
-        stbi_image_free(data);
-    }
-    
-    for (int i = 0; i < 6; i++) {
-        ourShader.use();
-        ourShader.setInt(texName[i], i);
-    }
-    glEnable(GL_DEPTH_TEST);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
     display_game_info();
+
+    Cube = new magic_cube();
     //render loop
     while (!glfwWindowShouldClose(window)) {
         currFrame = glfwGetTime();
         deltaTime = currFrame - lastFrame;
         lastFrame = currFrame;
 
-        processInput(window);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         //逐渐转动魔方的过程
+        processInput(window);
         if (rotation_surface >= 0) rotate_cube_slowly();
         
-        for (int i = 0; i < 27; i++) {
-            glBindVertexArray(VAO[i]);
-            //注意：在修改bufferdata前需要绑定buffer
-            glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(Cube.cubes[i].v), Cube.cubes[i].v, GL_STATIC_DRAW);
+        model = view = projection = glm::mat4(1.0f);
 
-            float t = glfwGetTime();
+        model = glm::rotate(model, -glm::radians(pitch), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(yaw), glm::vec3(0.0f, 1.0f, 0.0f));
 
-            glm::mat4 model(1.0f);
+        float normal[6][4] = {
+            {0, 0, -1, 1}, //green
+            {0, 0, 1, 1},  //blue
+            {0, -1, 0, 1}, //white
+            {0, 1, 0, 1},  //yellow
+            {-1, 0, 0, 1}, //orange
+            {1, 0, 0, 1},  //red
+        };
 
-            //注意：交换两次旋转变换的位置，效果不一样
-            //后执行的变化，即写在前面的这次变换拥有更高的优先级。就等于说是第一步的变换执行之后，被第二步变换改变了
-            model = glm::rotate(model, -glm::radians(pitch), glm::vec3(1.0f, 0.0f, 0.0f));
-            model = glm::rotate(model, glm::radians(yaw), glm::vec3(0.0f, 1.0f, 0.0f));
-
-            //set the direction vector of each surface
-            float normal[6][4] = {
-                {0, 0, -1, 1}, //green
-                {0, 0, 1, 1},  //blue
-                {0, -1, 0, 1}, //white
-                {0, 1, 0, 1},  //yellow
-                {-1, 0, 0, 1}, //orange
-                {1, 0, 0, 1},  //red
-            };
-
-            for (int t = 0; t < 6; ++t) {
-                glm::vec4 temp(normal[t][0], normal[t][1], normal[t][2], normal[t][3]);
-                temp = model * temp;
-                for (int s = 0; s < 4; ++s) normal[t][s] = temp[s]/temp[3];
-            }
-            set_magic_cube_direction(normal);
-
-            model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
-            //model = glm::translate(model, glm::vec3(-1.5, -1.5, -1.5));
-
-            glm::mat4 view(1.0f);
-            view = glm::translate(view, glm::vec3(0.0f, 0.0f, -1.0f));
-            //view = glm::lookAt(cameraPos, cameraTarget, cameraUp);
-
-            glm::mat4 projection(1.0f);
-            projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH/SCR_HEIGHT, 0.1f, 100.0f);
-
-            for (int j = 0; j < 6; ++j) {
-                //printf("j = %d\n", j);
-                glActiveTexture(GL_TEXTURE0 + j);
-                glBindTexture(GL_TEXTURE_2D, texture[j]);
-
-                ourShader.use();
-                unsigned int index = glGetUniformLocation(ourShader.ID, "index");
-                unsigned int modelLoc = glGetUniformLocation(ourShader.ID, "model");
-                unsigned int viewLoc = glGetUniformLocation(ourShader.ID, "view");
-                unsigned int projectionLoc = glGetUniformLocation(ourShader.ID, "projection");
-                glUniform1i(index, j);
-                glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-                glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-                glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-                //绘制三角形
-                glDrawArrays(GL_TRIANGLES, j*6, 6);
-            }
+        for (int t = 0; t < 6; ++t) {
+            glm::vec4 temp(normal[t][0], normal[t][1], normal[t][2], normal[t][3]);
+            temp = model * temp;
+            for (int s = 0; s < 4; ++s) normal[t][s] = temp[s]/temp[3];
         }
-        //std::cout << "yaw = " << yaw << ", pitch = " << pitch << std::endl;
+
+        model = glm::scale(model, glm::vec3(0.1, 0.1, 0.1));
+
+        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -1.0f));
+        //view = glm::lookAt(cameraPos, cameraTarget, cameraUp);
+
+        projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH/SCR_HEIGHT, 0.1f, 100.0f);
+
+        set_magic_cube_direction(normal);
+        Cube->draw();
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    glDeleteVertexArrays(27, VAO);
-    glDeleteBuffers(27, VBO);
+    //glDeleteVertexArrays(27, VAO);
+    //glDeleteBuffers(27, VBO);
 
     glfwTerminate();
 
@@ -285,22 +189,22 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
     switch (key) {
         case GLFW_KEY_U:
-            rotation_surface = Cube.up;
+            rotation_surface = Cube->up;
             break;
         case GLFW_KEY_D:
-            rotation_surface = Cube.oppo[Cube.up];
+            rotation_surface = Cube->oppo[Cube->up];
             break;
         case GLFW_KEY_R:
-            rotation_surface = Cube.right;
+            rotation_surface = Cube->right;
             break;
         case GLFW_KEY_L:
-            rotation_surface = Cube.oppo[Cube.right];
+            rotation_surface = Cube->oppo[Cube->right];
             break;
         case GLFW_KEY_F:
-            rotation_surface = Cube.front;
+            rotation_surface = Cube->front;
             break;
         case GLFW_KEY_B:
-            rotation_surface = Cube.oppo[Cube.front];
+            rotation_surface = Cube->oppo[Cube->front];
             break;
         default:
             break;
@@ -334,22 +238,22 @@ void set_magic_cube_direction(float normal[][4]) {
             front_max = normal[i][2];
         }
     }
-    Cube.set_direction(right_color, up_color, front_color);
+    Cube->set_direction(right_color, up_color, front_color);
 }
 
 void rotate_cube_slowly() {
-    if (rotation_surface == Cube.up)
-        Cube.U(rotation_speed);
-    else if (rotation_surface == Cube.oppo[Cube.up])
-        Cube.D(rotation_speed);
-    else if (rotation_surface == Cube.right)
-        Cube.R(rotation_speed);
-    else if (rotation_surface == Cube.oppo[Cube.right])
-        Cube.L(rotation_speed);
-    else if (rotation_surface == Cube.front)
-        Cube.F(rotation_speed);
-    else if (rotation_surface == Cube.oppo[Cube.front])
-        Cube.B(rotation_speed);
+    if (rotation_surface == Cube->up)
+        Cube->U(rotation_speed);
+    else if (rotation_surface == Cube->oppo[Cube->up])
+        Cube->D(rotation_speed);
+    else if (rotation_surface == Cube->right)
+        Cube->R(rotation_speed);
+    else if (rotation_surface == Cube->oppo[Cube->right])
+        Cube->L(rotation_speed);
+    else if (rotation_surface == Cube->front)
+        Cube->F(rotation_speed);
+    else if (rotation_surface == Cube->oppo[Cube->front])
+        Cube->B(rotation_speed);
 
     rotation_counter++;
     if (rotation_counter == NINETY_DEGREES) {
