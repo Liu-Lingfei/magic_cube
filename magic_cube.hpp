@@ -5,6 +5,46 @@
 #include <cmath>
 #include "vertices.hpp"
 
+class cube {
+    public:
+    float v[6][6][5];
+    cube();
+    void rotate(float axis[], float degree);
+    void move(float dx, float dy, float dz);
+};
+
+cube::cube() {
+    memcpy(v, vertices, sizeof(vertices));
+}
+
+void cube::rotate(float axis[], float degree) {
+    glm::mat4 model(1.0f);
+    //旋转角度是逆时针，取负变为顺时针
+    model = glm::rotate(model, glm::radians(-degree), glm::vec3(axis[0], axis[1], axis[2]));
+
+    for (int i = 0; i < 6; ++i) {
+        for (int j = 0; j < 6; ++j) {
+            glm::vec4 point(v[i][j][0],
+                            v[i][j][1],
+                            v[i][j][2], 1.0f);
+            point = model * point;
+            for (int m = 0; m < 3; ++m) printf("%f, ", point[m]);
+            printf("\n");
+            for (int m = 0; m < 3; ++m) v[i][j][m] = point[m];
+        }
+    }
+}
+
+void cube::move(float dx, float dy, float dz) {
+    for (int i = 0; i < 6; ++i) {
+        for (int j = 0; j < 6; ++j) {
+            v[i][j][0] += dx - 1.5;
+            v[i][j][1] += dy - 1.5;
+            v[i][j][2] += dz - 1.5;
+        }
+    }
+}
+
 enum SURFACE_INDEX {GREEN, BLUE, WHITE, YELLOW, ORANGE, RED,
             GREEN_T, BLUE_T, WHITE_T, YELLOW_T, ORANGE_T, RED_T};
 
@@ -30,14 +70,14 @@ bool at_same_position(float p1[], float p2[]) {
     return true;
 }
 
-class magic_cube
-{
+class magic_cube {
 public:
     int right;  //to x direction
     int up;     //to y direction
     int front;  //to z direction
     SURFACE_INDEX oppo[6];
-    float cubes[27][6][6][5];
+    //float cubes[27][6][6][5];
+    cube cubes[27];
 
     magic_cube();
 
@@ -69,6 +109,8 @@ magic_cube::magic_cube() {
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 3; ++j) {
             for (int k = 0; k < 3; ++k) {
+                cubes[k*9+j*3+i].move((float)i, (float)j, (float)k);
+                /*
                 memcpy(cubes[k*9+j*3+i], vertices, sizeof(vertices));
                 for (int p = 0; p < 6; ++p) {
                     for (int q = 0; q < 6; ++q) {
@@ -81,6 +123,7 @@ magic_cube::magic_cube() {
                         cubes[k*9+j*3+i][p][q][2] -= 1.5;
                     }
                 }
+                */
             }
         }
     }
@@ -96,7 +139,7 @@ bool magic_cube::is_at_same_surface(int cube_index, int center_index, int color_
     for (int i = 0; i < 6; ++i) {
         for (int j = 0; j < 6; ++j) {
             for (int k = 0; k < 4; ++k) {
-                if (at_same_position(cubes[cube_index][i][j], cubes[center_index][color_index][k])) {
+                if (at_same_position(cubes[cube_index].v[i][j], cubes[center_index].v[color_index][k])) {
                     return true;
                 }
             }
@@ -111,16 +154,23 @@ void magic_cube::rotate_cubes(int cube_index[], int num, float axis[], float deg
     model = glm::rotate(model, glm::radians(-degree), glm::vec3(axis[0], axis[1], axis[2]));
 
     for (int i = 0; i < 9; ++i) {
+        cubes[cube_index[i]].rotate(axis, degree);
+    }
+    /*
+    for (int i = 0; i < 9; ++i) {
         for (int j = 0; j < 6; ++j) {
             for (int k = 0; k < 6; ++k) {
                 glm::vec4 point(cubes[cube_index[i]][j][k][0],
                                 cubes[cube_index[i]][j][k][1],
                                 cubes[cube_index[i]][j][k][2], 1.0f);
                 point = model * point;
+                for (int m = 0; m < 3; ++m) printf("%f, ", point[m]);
+                printf("\n");
                 for (int m = 0; m < 3; ++m) cubes[cube_index[i]][j][k][m] = point[m];
             }
         }
     }
+    */
 }
 
 void magic_cube::rotate_surface(int surface_index, float degree) {

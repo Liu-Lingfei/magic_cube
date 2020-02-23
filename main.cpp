@@ -18,6 +18,8 @@ void processInput(GLFWwindow *window);
 void set_magic_cube_direction(float normal[][4]);
 void rotate_cube_slowly();
 
+void display_game_info();
+
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 800;
 const float NINETY_DEGREES = 90.0;
@@ -61,7 +63,7 @@ int main(void) {
 #endif
 
     //glfw window creation
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "magic_cube_2.0", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "magic_cube", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -89,7 +91,7 @@ int main(void) {
         glBindVertexArray(VAO[i]);
 
         glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(Cube.cubes[i]), Cube.cubes[i], GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Cube.cubes[i].v), Cube.cubes[i].v, GL_STATIC_DRAW);
         //position attribute
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
@@ -132,6 +134,7 @@ int main(void) {
     glEnable(GL_DEPTH_TEST);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+    display_game_info();
     //render loop
     while (!glfwWindowShouldClose(window)) {
         currFrame = glfwGetTime();
@@ -149,7 +152,7 @@ int main(void) {
             glBindVertexArray(VAO[i]);
             //注意：在修改bufferdata前需要绑定buffer
             glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(Cube.cubes[i]), Cube.cubes[i], GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(Cube.cubes[i].v), Cube.cubes[i].v, GL_STATIC_DRAW);
 
             float t = glfwGetTime();
 
@@ -169,6 +172,7 @@ int main(void) {
                 {-1, 0, 0, 1}, //orange
                 {1, 0, 0, 1},  //red
             };
+
             for (int t = 0; t < 6; ++t) {
                 glm::vec4 temp(normal[t][0], normal[t][1], normal[t][2], normal[t][3]);
                 temp = model * temp;
@@ -352,4 +356,17 @@ void rotate_cube_slowly() {
         rotation_counter = 0;
         rotation_surface = -1;
     }
+}
+
+void display_game_info() {
+    printf("\n\nWelcome to my first OpenGL game: rubic_cube!!!\n\n"
+
+            "Hints:\n"
+            "(1) Esc to quit\n"
+            "(2) mouse for changing view\n"
+            "(3) keyboard for rotating the cube clockwise:\n"
+            "    U(p)  D(own)  F(ront)  B(ack)  R(ight)  L(eft)\n"
+            "(4) hit Shift at the same time to rotate anti-clockwise\n\n"
+
+            "Enjoy yourself :)\n");
 }
