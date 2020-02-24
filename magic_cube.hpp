@@ -263,7 +263,6 @@ void magic_cube::rotate_cubes(int cube_index[], int num, float axis[], float deg
 void magic_cube::rotate_surface(int surface_index, float degree) {
     int surface_cube[9];
     int count = 0;
-    bool checked;
 
     for (int i = 0; i < 9; ++i) surface_cube[i] = -1;
 
