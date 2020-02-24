@@ -18,7 +18,10 @@ OpenGL的版本为3.3或更高版本，需要用到glfw3，glad和stb_image。�
 
 编译项目的方法参考https://www.glfw.org/docs/latest/build_guide.html。
 
+### macOS
 在macOS 10.15.3下安装了pkg-config后可以用下面的命令编译：
 ```
 g++ `pkg-config --cflags glfw3` -o main main.cpp stb_image.cpp glad.c `pkg-config --static --libs glfw3`
 ```
+### Windows
+项目中的visual_studio_project可以用visual studio打开。
